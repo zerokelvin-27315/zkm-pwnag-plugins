@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import glob
+from datetime import datetime
 
 import pwnagotchi
 import pwnagotchi.plugins as plugins
@@ -10,7 +11,7 @@ from flask import abort
 from flask import send_from_directory
 from flask import render_template_string
 
-TEMPLATE = """
+TEMPLATE="""
 {% extends "base.html" %}
 {% set active_page = "handshakes" %}
 {% block title %}
@@ -26,47 +27,84 @@ TEMPLATE = """
             border: 1px solid #ddd;
             margin-bottom: 12px;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
     </style>
 {% endblock %}
 {% block script %}
-    var shakeList = document.getElementById('list');
     var filter = document.getElementById('filter');
-    var filterVal = filter.value.toUpperCase();
     filter.onkeyup = function() {
         document.body.style.cursor = 'progress';
-        var table, tr, tds, td, i, txtValue;
-        filterVal = filter.value.toUpperCase();
-        li = shakeList.getElementsByTagName("li");
-        for (i = 0; i < li.length; i++) {
-            txtValue = li[i].textContent || li[i].innerText;
-            if (txtValue.toUpperCase().indexOf(filterVal) > -1) {
-                li[i].style.display = "list-item";
-            } else {
-                li[i].style.display = "none";
+        var filterVal = filter.value.toUpperCase();
+        var table, tr, td, i, txtValue;
+        table = document.getElementById("fileTable");
+        tr = table.getElementsByTagName("tr");
+        for (i = 1; i < tr.length; i++) { // Skip the header row
+            td = tr[i].getElementsByTagName("td")[1]; // Search in the filename column
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filterVal) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
             }
         }
         document.body.style.cursor = 'default';
-    }
+    };
+
+    // Convert UTC timestamps to local timezone
+    document.querySelectorAll(".file-time").forEach(function(element) {
+        var utcTime = element.getAttribute("data-utc");
+        var localTime = new Date(utcTime).toLocaleString(); // Convert to local timezone
+        element.textContent = localTime; // Replace content with local time
+    });
 {% endblock %}
 {% block content %}
-    <input type="text" id="filter" placeholder="Search for ..." title="Type in a filter">
-    <ul id="list" data-role="listview" style="list-style-type:disc;">
-        {% for handshake in handshakes %}
-            {% for ext in handshake.ext %}
-                <li class="file">
-                    <a href="/plugins/handshakes-dl-hashie/{{handshake.name}}{{ext}}">{{handshake.name}}{{ext}}</a>
-                </li>
+    <input type="text" id="filter" placeholder="Search for filenames..." title="Type in a filter">
+    <table id="fileTable">
+        <thead>
+            <tr>
+                <th>Updated Timestamp</th>
+                <th>Filename</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for handshake in handshakes %}
+                {% for ext in handshake.ext %}
+                    <tr>
+                        <td class="file-time" data-utc="{{ handshake.ts }}"></td>
+                        <td>
+                            <a href="/plugins/handshakes-dl-hashie/{{ handshake.name }}{{ ext }}">{{ handshake.name }}{{ ext }}</a>
+                        </td>
+                    </tr>
+                {% endfor %}
             {% endfor %}
-        {% endfor %}
-    </ul>
+        </tbody>
+    </table>
 {% endblock %}
 """
 
-class handshakes:  
-    def __init__(self, name, path, ext):  
-        self.name = name  
-        self.path = path  
-        self.ext = ext 
+class handshakes:
+    def __init__(self, name, path, ext, ts):
+        self.name = name
+        self.path = path
+        self.ext = ext
+        self.ts = ts  # Timestamp of the file
 
 class HandshakesDL(plugins.Plugin):
     __author__ = 'me@sayakb.com'
@@ -90,24 +128,34 @@ class HandshakesDL(plugins.Plugin):
 
         if path == "/" or not path:
             pcapfiles = glob.glob(os.path.join(self.config['bettercap']['handshakes'], "*.pcap"))
-            
+
             data = []
             for path in pcapfiles:
                 name = os.path.basename(path)[:-5]
                 fullpathNoExt = path[:-5]
                 possibleExt = ['.2500', '.16800', '.22000']
                 foundExt = ['.pcap']
-                for ext in possibleExt: 
-                    if os.path.isfile(fullpathNoExt +  ext):
+                for ext in possibleExt:
+                    if os.path.isfile(fullpathNoExt + ext):
                         foundExt.append(ext)
-                data.append(handshakes(name, fullpathNoExt, foundExt)) 
-            return render_template_string(TEMPLATE,
-                                    title="Handshakes | " + pwnagotchi.name(),
-                                    handshakes=data)
+
+                # Get the last modified time of the file
+                ts = os.path.getmtime(path)
+                ts_iso = datetime.utcfromtimestamp(ts).isoformat() + "Z"
+                data.append(handshakes(name, fullpathNoExt, foundExt, ts_iso))
+
+            # Sort the data by timestamp (latest first)
+            data.sort(key=lambda x: x.ts, reverse=True)
+
+            return render_template_string(
+                TEMPLATE,
+                title="Handshakes | " + pwnagotchi.name(),
+                handshakes=data
+            )
         else:
             dir = self.config['bettercap']['handshakes']
             try:
                 logging.info(f"[HandshakesDL] serving {dir}/{path}")
-                return send_from_directory(directory=dir, filename=path, as_attachment=True)
+                return send_from_directory(dir, path, as_attachment=True)
             except FileNotFoundError:
                 abort(404)
