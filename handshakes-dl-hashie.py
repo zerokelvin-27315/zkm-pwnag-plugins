@@ -97,15 +97,13 @@ TEMPLATE="""
             {% endfor %}
         </tbody>
     </table>
-{% endblock %}
-{% block footer %}
     <div class="footer">
-        <p>HandshakesDL Plugin Version: {{ version }}</p>
+        <p>Version: {{ version }}</p>
     </div>
 {% endblock %}
 """
 
-VERSION = "2025-04-30"
+VERSION = "20250430"
 
 class handshakes:
     def __init__(self, name, path, ext, ts):
@@ -116,7 +114,7 @@ class handshakes:
 
 class HandshakesDL(plugins.Plugin):
     __author__ = 'me@sayakb.com'
-    __version__ = '1.0.0'
+    __version__ = '1.0.1'
     __license__ = 'GPL3'
     __description__ = 'Download handshake captures from web-ui.'
 
