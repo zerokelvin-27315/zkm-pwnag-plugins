@@ -3,6 +3,7 @@ import json
 import os
 import glob
 from datetime import datetime
+from sys import version
 
 import pwnagotchi
 import pwnagotchi.plugins as plugins
@@ -97,7 +98,14 @@ TEMPLATE="""
         </tbody>
     </table>
 {% endblock %}
+{% block footer %}
+    <div class="footer">
+        <p>HandshakesDL Plugin Version: {{ version }}</p>
+    </div>
+{% endblock %}
 """
+
+VERSION = "2025-04-30"
 
 class handshakes:
     def __init__(self, name, path, ext, ts):
@@ -150,7 +158,8 @@ class HandshakesDL(plugins.Plugin):
             return render_template_string(
                 TEMPLATE,
                 title="Handshakes | " + pwnagotchi.name(),
-                handshakes=data
+                handshakes=data,
+                version=VERSION,
             )
         else:
             dir = self.config['bettercap']['handshakes']
