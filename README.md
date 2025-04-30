@@ -7,7 +7,7 @@ Add to `/etc/pwnagotchi/config.toml` :
 ```bash
 main.custom_plugin_repos = [
  "https://github.com/evilsocket/pwnagotchi-plugins-contrib/archive/master.zip",
- "https://github.com/PwnPeter/pwnagotchi-plugins/archive/master.zip",
+ "https://github.com/zerokelvin-27315/pwnagotchi-plugins/archive/master.zip",
 ]
 ```
 
