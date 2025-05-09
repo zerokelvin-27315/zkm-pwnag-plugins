@@ -23,3 +23,7 @@ hashie.py with support of the 2021 version of hcxtools + new hashcat formats.
 
 ### handshakes-dl-hashie.py
 Download handshake captures from web-ui + handshake converted in hashcat format with `hashie-hcxpcapngtool.py`.
+
+### enable_deauth.py
+Now includes the a UI counter (total)  of the number of deauths performed in the current session.
+
